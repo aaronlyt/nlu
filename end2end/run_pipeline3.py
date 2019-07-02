@@ -13,7 +13,7 @@ import tensorflow.keras as keras
 from tensorflow.python import debug as tf_debug
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/../')
-from model import *
+from end2end_model import jointModel
 from data_util import read_bert_token, build_bert_data_array
 from third_party.seqeval.callbacks import F1Metrics
 
@@ -58,8 +58,8 @@ def build_model_pipeline(params, train_dataset, \
     """
     """
     optimizer = keras.optimizers.Adam(params['lr'])
-    model, loss, acc = LstmCrf(params)
-    model.compile(optimizer, loss=loss, metrics=[acc])
+    model, loss, metrics = jointModel(params)
+    model.compile(optimizer, loss=loss, metrics=metrics)
 
     callbacks = [
         # Interrupt training if `val_loss` stops improving for over 2 epochs
@@ -79,23 +79,6 @@ def build_model_pipeline(params, train_dataset, \
             callbacks=callbacks)
     
 
-def prediction(params, test_dataset):
-    """
-    """
-    entity_f1_metrics = F1Metrics(params['id2label'])
-    model = keras.models.load_model('../results.model')
-     # evaluation
-    y_test_pred = []
-    y_test_true = []
-    for step, (x_test_batch, y_test_batch) in enumerate(test_dataset):
-        y_test_pred.extend(model(x_test_batch))
-        y_test_true.extend(model(y_test_batch))
-    f1score = entity_f1_metrics.score(y_test_true, y_test_pred)
-
-    return True, "OK"
-
-
-
 if __name__ == '__main__':    
     params = {
         'use_bert': True,
@@ -107,9 +90,6 @@ if __name__ == '__main__':
         'batch_size': 64,
         'use_emb_drop': False,
         'emb_drop_rate': 0.1,
-        'use_emb_transform': False,
-        'transofrm_units': 500,
-        'use_crf': False,
         'num_layer': 0,
         'num_lstm_cell': [150],
         'rec_drops': [0.1],

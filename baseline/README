@@ -1,0 +1,6 @@
+baseline model, three seperate model
+
+classification model
+    two gbdt
+named entity recognition model
+    crf baseline model

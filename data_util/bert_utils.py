@@ -10,6 +10,7 @@ import tensorflow.keras as keras
 from keras_bert import Tokenizer
 
 from .preprocess_util import *
+from make_features import extract_raw_data
 
 
 def read_bert_token(vocab_path):
@@ -39,18 +40,29 @@ def process_bert_format(tokenizer, text, max_sent_len):
     return indices, segments
 
 
-def read_bert_data(dataset_path, token_dict, l_vocab, max_sent_len):
+def trans_2labelid(vocab, labels, max_sent_len):
+    """
+    """
+    labels = [vocab[label] for label in labels]
+    labels = [0] + labels
+    labels += [0] * (max_sent_len - len(labels))
+    return labels
+
+
+def read_bert_data(dataset_path, token_dict, ner_vocab, \
+    domain_vocab, intent_vocab, max_sent_len):
     """
     """
     #tokenizer = Tokenizer(token_dict)
     dataset_indices = []
     dataset_segments = []
-    dataset_labels = []
-    txt_seqs, label_seqs = read_documents_seq(dataset_path)
+    dataset_ner_labels = []
+    dataset_domain_labels = []
+    dataset_intent_labels = []
+    txt_seqs, domain_labels, intent_labels, slots_ners = \
+        extract_raw_data(dataset_path)
     for idx, txt_seq in enumerate(txt_seqs):
-        # max_sent_len - 2, for CLS SEP
-        split_txts, split_labels = split_document_simple(\
-            txt_seq, label_seqs[idx], max_sent_len - 2)
+        split_txts = txt_seq
         for idx, txt in enumerate(split_txts):
             indices, segments = process_bert_format(token_dict, \
                 txt, max_sent_len)
@@ -59,64 +71,60 @@ def read_bert_data(dataset_path, token_dict, l_vocab, max_sent_len):
             #sys.exit(0)
             dataset_indices.append(indices)
             dataset_segments.append(segments)
+            dataset_ner_labels.append(trans_2labelid(ner_vocab, \
+                slots_ners[idx], max_sent_len))
+            dataset_domain_labels.append(trans_2labelid(domain_vocab, \
+                domain_labels[idx], max_sent_len))
+            dataset_intent_labels.append(trans_2labelid(intent_vocab, \
+                intent_labels[idx], max_sent_len))
 
-            labels = to_train_id([split_labels[idx]], l_vocab)[0]
-            labels = [0] + labels
-            #labels += [2]
-            labels += [0] * (max_sent_len - len(labels))
-            assert(len(labels) == len(indices))
-            dataset_labels.append(labels)
-    print('---split sentence count---', len(dataset_indices))    
-    return dataset_indices, dataset_segments, dataset_labels
-
-
-def padding(indices, segments, labels, batch_size):
-    """
-    padding on the whole dataset, can also on the batch
-    """
-    new_dset_indices = []
-    new_dset_segments = []
-    new_dset_labels = []
-    
-    max_seqs_len = max([len(seq) for seq in indices])
-    for indice, idx in enumerate(indices):
-        new_dset_indices.append(indice + [0] * (max_seqs_len - len(indice)))
-        new_dset_segments.append(segments[idx] + \
-            [0] * (max_seqs_len - len(segments[idx])))
-        new_dset_labels.append(labels[idx] + \
-            [0] * (max_seqs_len - len(labels[idx])))
+            assert(len(dataset_ner_labels[idx]) == len(indices))
+            assert(len(dataset_domain_labels[idx]) == len(indices))
+            assert(len(dataset_intent_labels[idx]) == len(indices))
         
-    return new_dset_indices, new_dset_segments, new_dset_labels 
+    print('---split sentence count---', len(dataset_indices))    
+    dataset_indices = np.array(dataset_indices)
+    dataset_segments = np.array(dataset_segments)
+    dataset_ner_labels = np.array(dataset_ner_labels)
+    domain_labels = np.array(domain_labels)
+    intent_labels = np.array(intent_labels)
+    return dataset_indices, dataset_segments, dataset_ner_labels, \
+        domain_labels, intent_labels
 
 
-def build_bert_data_array(dataset_path, token_dict, l_vocab, \
-    params, phrase='train'):
+def build_bert_data_array(dataset_path, token_dict, ner_vocab, \
+    domain_vocab, intent_vocab, params, phrase='train'):
     """
     """
     max_sent_len = params['max_sent_len']
-    dataset_indices, dataset_segments, dataset_labels = \
-        read_bert_data(dataset_path, token_dict, l_vocab, max_sent_len)
+    dataset_indices, dataset_segments, dataset_ner_labels, \
+        dataset_domain_labels, dataset_intent_labels = \
+        read_bert_data(dataset_path, token_dict, \
+            ner_vocab, domain_vocab, intent_vocab, max_sent_len)
 
     def map_fn(seq, label):
         #return (seq, tf.expand_dims(label, -1))
         return (seq, keras.backend.one_hot(label, \
             params['num_entities']))
 
-    dataset_indices, dataset_segments, dataset_labels = \
-        np.array(dataset_indices), \
-        np.array(dataset_segments), np.array(dataset_labels)
-
     print('----dataset shape----', dataset_indices.shape, \
-        dataset_labels.shape)
+        dataset_ner_labels.shape)
 
     dataset = tf.data.Dataset.from_tensor_slices(\
-        ({'Input-Token': dataset_indices, \
-            'Input-Segment': dataset_segments}, dataset_labels))
+        ({
+            'Input-Token': dataset_indices, 
+            'Input-Segment': dataset_segments
+            }, \
+                {
+                    'ner_labels': dataset_ner_labels,
+                    'domain_labels': dataset_domain_labels,
+                    'intent_labels': dataset_intent_labels
+                }))
     #dataset = dataset.shuffle(dataset_indices.shape[0])
     dataset = dataset.batch(params['batch_size'])
     if phrase == 'train':
         dataset = dataset.repeat(params['ori_epochs'])
-    dataset = dataset.map(map_fn)
+    #dataset = dataset.map(map_fn)
 
     return dataset, dataset_indices.shape[0]
 
