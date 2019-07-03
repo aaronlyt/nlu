@@ -16,7 +16,7 @@ from keras_bert import load_trained_model_from_checkpoint
 def get_bert_model(params):
     """
     """
-    SEQ_LEN = params['seq_len']
+    SEQ_LEN = params['max_sent_len']
     pretrained_path = params['bert_path']
     config_path = os.path.join(pretrained_path, 'bert_config.json')
     checkpoint_path = os.path.join(pretrained_path, 'bert_model.ckpt')
@@ -56,22 +56,29 @@ def jointModel(params):
     
     ner_pred = layers.TimeDistributed(\
         layers.Dense(params['entities_num'], \
-            activation='softmax'), name='ner_pred')(x)
+            activation='softmax'), name='ner_output')(x)
     # batch_size * seq_len * embedding_sz
     x_shape = x.get_shape()
-    cls_x = tf.slice(x, [0, 0, 0], [x_shape[0], 1, x_shape[2]])
+    cls_x = layers.Lambda(lambda t: t[:, 0, :])(x)
     intent_pred = layers.Dense(params['intent_num'], \
-        activation='softmax', name='intent_pred')(cls_x)
+        activation='softmax', name='intent_output')(cls_x)
     domain_pred = layers.Dense(params['domain_num'], \
-        activation='softmax', name='domain_pred')(cls_x)
+        activation='softmax', name='domain_output')(cls_x)
 
     model = tf.keras.Model(inputs=inputs, \
-        outputs=[ner_pred, intent_pred, domain_pred])
+        outputs=[domain_pred, intent_pred, ner_pred])
 
+    # key same as the output layer name, also same as input dict key
+    # https://www.tensorflow.org/beta/guide/keras/training_and_evaluation#passing_data_to_multi-input_multi-output_models
     losses = {
-        'domain_loss': 'softmax_crossentropy',
-        'intent_loss': 'softmax_crossentropy',
-        'ner_loss': 'softmax_crossentropy'
-    }
-    metrics = ['accuracy']
+        'domain_output': 'sparse_categorical_crossentropy',
+        'intent_output': 'sparse_categorical_crossentropy',
+        'ner_output': 'sparse_categorical_crossentropy'
+        }
+    metrics = {
+        'domain_output': ['accuracy'],
+        'intent_output': ['accuracy'],
+        'ner_output': ['accuracy']
+        }
+    
     return model, losses, metrics 

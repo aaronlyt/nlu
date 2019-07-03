@@ -9,8 +9,9 @@ import tensorflow as tf
 import tensorflow.keras as keras
 from keras_bert import Tokenizer
 
-from .preprocess_util import *
-from make_features import extract_raw_data
+sys.path.append(os.path.abspath(os.path.dirname(__file__)) + '/../')
+from data_util.preprocess_util import *
+from data_util.make_features import extract_raw_data
 
 
 def read_bert_token(vocab_path):
@@ -32,6 +33,7 @@ def process_bert_format(tokenizer, text, max_sent_len):
     # problem solution
     #indices, segments = tokenizer.encode(first=text, \
     #    max_len=max_sent_len)
+    
     text = ['[CLS]'] + text + ['[SEP]']
     indices = [tokenizer.get(token, tokenizer.get('[UNK]')) \
         for token in text]
@@ -62,32 +64,34 @@ def read_bert_data(dataset_path, token_dict, ner_vocab, \
     txt_seqs, domain_labels, intent_labels, slots_ners = \
         extract_raw_data(dataset_path)
     for idx, txt_seq in enumerate(txt_seqs):
-        split_txts = txt_seq
-        for idx, txt in enumerate(split_txts):
-            indices, segments = process_bert_format(token_dict, \
-                txt, max_sent_len)
-            #id2token_d = dict([(id, token) for token, id in token_dict.items()])
-            #print([id2token_d[id] for id in indices])
-            #sys.exit(0)
-            dataset_indices.append(indices)
-            dataset_segments.append(segments)
-            dataset_ner_labels.append(trans_2labelid(ner_vocab, \
-                slots_ners[idx], max_sent_len))
-            dataset_domain_labels.append(trans_2labelid(domain_vocab, \
-                domain_labels[idx], max_sent_len))
-            dataset_intent_labels.append(trans_2labelid(intent_vocab, \
-                intent_labels[idx], max_sent_len))
-
-            assert(len(dataset_ner_labels[idx]) == len(indices))
-            assert(len(dataset_domain_labels[idx]) == len(indices))
-            assert(len(dataset_intent_labels[idx]) == len(indices))
+        assert(len(txt_seq) < (max_sent_len - 2))
+        txt_seq = list(txt_seq)    
+        indices, segments = process_bert_format(token_dict, \
+            txt_seq, max_sent_len)
+        id2token_d = dict([(id, token) for token, id in token_dict.items()])
+        dataset_indices.append(indices)
+        dataset_segments.append(segments)
+        dataset_ner_labels.append(trans_2labelid(ner_vocab, \
+            slots_ners[idx], max_sent_len))
+        dataset_domain_labels.append(domain_vocab[domain_labels[idx]])
+        try:
+            dataset_intent_labels.append(intent_vocab[intent_labels[idx]])
+        except KeyError:
+            print('---', intent_labels[idx])
+            dataset_intent_labels.append(intent_vocab['NaN'])
+        
+        #print(indices)
+        #print(segments)
+        #print(domain_vocab[domain_labels[idx]])
+        #print(dataset_intent_labels[idx])
+        assert(len(dataset_ner_labels[idx]) == len(indices))
         
     print('---split sentence count---', len(dataset_indices))    
     dataset_indices = np.array(dataset_indices)
     dataset_segments = np.array(dataset_segments)
     dataset_ner_labels = np.array(dataset_ner_labels)
-    domain_labels = np.array(domain_labels)
-    intent_labels = np.array(intent_labels)
+    domain_labels = np.array(dataset_domain_labels)
+    intent_labels = np.array(dataset_intent_labels)
     return dataset_indices, dataset_segments, dataset_ner_labels, \
         domain_labels, intent_labels
 
@@ -116,9 +120,9 @@ def build_bert_data_array(dataset_path, token_dict, ner_vocab, \
             'Input-Segment': dataset_segments
             }, \
                 {
-                    'ner_labels': dataset_ner_labels,
-                    'domain_labels': dataset_domain_labels,
-                    'intent_labels': dataset_intent_labels
+                    'ner_output': dataset_ner_labels,
+                    'domain_output': dataset_domain_labels,
+                    'intent_output': dataset_intent_labels
                 }))
     #dataset = dataset.shuffle(dataset_indices.shape[0])
     dataset = dataset.batch(params['batch_size'])
@@ -131,7 +135,7 @@ def build_bert_data_array(dataset_path, token_dict, ner_vocab, \
 
 if __name__ == '__main__':
     params = {
-        'max_sent_len': 256,
+        'max_sent_len': 30,
         'bert_path': '../dataset/chinese_L-12_H-768_A-12', 
         'num_entities': 0,
         'batch_size': 64,
@@ -143,8 +147,18 @@ if __name__ == '__main__':
 
     vocab_path = os.path.join(params['bert_path'], 'vocab.txt')
     vocab = read_bert_token(vocab_path)
-    dataset_path = '../dataset/emrexample.train'
-    dataset, _ = build_bert_data_array(dataset_path, vocab, l_vocab, params)
+
+    with codecs.open('../dataset/label2id', 'r', 'utf-8') as fp:
+        label2id = json.load(fp)
+
+    ner_vocab, domain_vocab, intent_vocab = label2id['ner_label2id'], \
+        label2id['domain_label2id'], label2id['intent_label2id']
+    print(domain_vocab)
+    print(intent_vocab)
+    dataset_path = '../dataset/train_s.json'
+    dataset, _ = build_bert_data_array(dataset_path, vocab, ner_vocab, \
+        domain_vocab, intent_vocab, params)
+
 
     for val in dataset.take(1):
         print(val[0]['Input-Token'])

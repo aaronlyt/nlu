@@ -7,7 +7,8 @@ import json
 import numpy as np
 from sklearn.preprocessing import OneHotEncoder
 
-from make_features import extract_raw_data
+sys.path.append(os.path.abspath(os.path.dirname(__file__)) + '/../')
+from data_util.make_features import extract_raw_data
 
 
 def to_train_id(seqs, v):
