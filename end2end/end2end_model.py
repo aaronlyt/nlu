@@ -24,7 +24,7 @@ def get_bert_model(params):
     
     model = load_trained_model_from_checkpoint(\
         config_path, checkpoint_path, training=False,\
-            trainable=None, seq_len=SEQ_LEN)
+            trainable=True, seq_len=SEQ_LEN)
 
     return model.inputs, model.outputs[0]
 

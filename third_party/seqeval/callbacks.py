@@ -48,12 +48,13 @@ class F1Metrics(Callback):
         assert(len(y_pred) == 3)
         y_pred = y_pred[2]
         y = y['ner_output']
-        print(y_pred.shape)
+        print(y_pred.shape, y.shape)
         # reduce dimension.
         if len(np.array(y).shape) == 3:
             y_true = np.argmax(y, -1)
         else:
             y_true = y
+        print(y_pred.shape, y_true.shape)
         y_pred = np.argmax(y_pred, -1)
         non_pad_indexes = [np.nonzero(np.array(y_true_row) != self.pad_value)[0] \
             for y_true_row in y_true]
