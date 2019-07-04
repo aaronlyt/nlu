@@ -10,7 +10,7 @@ import numpy as np
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/../')
 from data_util.crf_features import *
-from third_party.seqeval import *
+from third_party.seqeval.metrics import *
 
 def load_info():
     """

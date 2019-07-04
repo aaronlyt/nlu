@@ -21,24 +21,24 @@ def get_entities(seq, suffix=False):
         list: list of (chunk_type, chunk_start, chunk_end).
     Example:
         >>> from seqeval.metrics.sequence_labeling import get_entities
-        >>> seq = ['B-PER', 'I-PER', 'IGN', 'B-LOC']
+        >>> seq = ['B-PER', 'I-PER', 'O', 'B-LOC']
         >>> get_entities(seq)
         [('PER', 0, 1), ('LOC', 3, 3)]
     """
     # for nested list
     if any(isinstance(s, list) for s in seq):
-        seq = [item for sublist in seq for item in sublist + ['IGN']]
+        seq = [item for sublist in seq for item in sublist + ['O']]
 
-    prev_tag = 'IGN'
+    prev_tag = 'O'
     prev_type = ''
     begin_offset = 0
     chunks = []
-    for i, chunk in enumerate(seq + ['IGN']):
+    for i, chunk in enumerate(seq + ['O']):
         if suffix:
             tag = chunk[-1]
             type_ = chunk.split('-')[0]
         else:
-            if chunk == 'IGN':
+            if chunk == 'O':
                 tag = type_ = chunk
             else:
                 tag = chunk[0]
@@ -73,12 +73,12 @@ def end_of_chunk(prev_tag, tag, prev_type, type_):
 
     if prev_tag == 'B' and tag == 'B': chunk_end = True
     if prev_tag == 'B' and tag == 'S': chunk_end = True
-    if prev_tag == 'B' and tag == 'IGN': chunk_end = True
+    if prev_tag == 'B' and tag == 'O': chunk_end = True
     if prev_tag == 'I' and tag == 'B': chunk_end = True
     if prev_tag == 'I' and tag == 'S': chunk_end = True
-    if prev_tag == 'I' and tag == 'IGN': chunk_end = True
+    if prev_tag == 'I' and tag == 'O': chunk_end = True
 
-    if prev_tag != 'IGN' and prev_tag != '.' and prev_type != type_:
+    if prev_tag != 'O' and prev_tag != '.' and prev_type != type_:
         chunk_end = True
 
     return chunk_end
@@ -103,10 +103,10 @@ def start_of_chunk(prev_tag, tag, prev_type, type_):
     if prev_tag == 'E' and tag == 'I': chunk_start = True
     if prev_tag == 'S' and tag == 'E': chunk_start = True
     if prev_tag == 'S' and tag == 'I': chunk_start = True
-    if prev_tag == 'IGN' and tag == 'E': chunk_start = True
-    if prev_tag == 'IGN' and tag == 'I': chunk_start = True
+    if prev_tag == 'O' and tag == 'E': chunk_start = True
+    if prev_tag == 'O' and tag == 'I': chunk_start = True
 
-    if tag != 'IGN' and tag != '.' and prev_type != type_:
+    if tag != 'O' and tag != '.' and prev_type != type_:
         chunk_start = True
 
     return chunk_start
@@ -126,10 +126,10 @@ def f1_score(y_true, y_pred, average='micro', suffix=False):
         score : float.
     Example:
         >>> from seqeval.metrics import f1_score
-        >>> y_true = [['IGN', 'IGN', 'IGN', 'B-MISC', 'I-MISC', 'I-MISC', 'IGN'], \
-            ['B-PER', 'I-PER', 'IGN']]
-        >>> y_pred = [['IGN', 'IGN', 'B-MISC', 'I-MISC', 'I-MISC', 'I-MISC', 'IGN'], \
-            ['B-PER', 'I-PER', 'IGN']]
+        >>> y_true = [['O', 'O', 'O', 'B-MISC', 'I-MISC', 'I-MISC', 'O'], \
+            ['B-PER', 'I-PER', 'O']]
+        >>> y_pred = [['O', 'O', 'B-MISC', 'I-MISC', 'I-MISC', 'I-MISC', 'O'], \
+            ['B-PER', 'I-PER', 'O']]
         >>> f1_score(y_true, y_pred)
         0.50
     """
@@ -159,8 +159,8 @@ def accuracy_score(y_true, y_pred):
         score : float.
     Example:
         >>> from seqeval.metrics import accuracy_score
-        >>> y_true = [['IGN', 'IGN', 'IGN', 'B-MISC', 'I-MISC', 'I-MISC', 'IGN'], ['B-PER', 'I-PER', 'IGN']]
-        >>> y_pred = [['IGN', 'IGN', 'B-MISC', 'I-MISC', 'I-MISC', 'I-MISC', 'IGN'], ['B-PER', 'I-PER', 'IGN']]
+        >>> y_true = [['O', 'O', 'O', 'B-MISC', 'I-MISC', 'I-MISC', 'O'], ['B-PER', 'I-PER', 'O']]
+        >>> y_pred = [['O', 'O', 'B-MISC', 'I-MISC', 'I-MISC', 'I-MISC', 'O'], ['B-PER', 'I-PER', 'O']]
         >>> accuracy_score(y_true, y_pred)
         0.80
     """
@@ -189,8 +189,8 @@ def precision_score(y_true, y_pred, average='micro', suffix=False):
         score : float.
     Example:
         >>> from seqeval.metrics import precision_score
-        >>> y_true = [['IGN', 'IGN', 'IGN', 'B-MISC', 'I-MISC', 'I-MISC', 'IGN'], ['B-PER', 'I-PER', 'IGN']]
-        >>> y_pred = [['IGN', 'IGN', 'B-MISC', 'I-MISC', 'I-MISC', 'I-MISC', 'IGN'], ['B-PER', 'I-PER', 'IGN']]
+        >>> y_true = [['O', 'O', 'O', 'B-MISC', 'I-MISC', 'I-MISC', 'O'], ['B-PER', 'I-PER', 'O']]
+        >>> y_pred = [['O', 'O', 'B-MISC', 'I-MISC', 'I-MISC', 'I-MISC', 'O'], ['B-PER', 'I-PER', 'O']]
         >>> precision_score(y_true, y_pred)
         0.50
     """
@@ -218,8 +218,8 @@ def recall_score(y_true, y_pred, average='micro', suffix=False):
         score : float.
     Example:
         >>> from seqeval.metrics import recall_score
-        >>> y_true = [['IGN', 'IGN', 'IGN', 'B-MISC', 'I-MISC', 'I-MISC', 'IGN'], ['B-PER', 'I-PER', 'IGN']]
-        >>> y_pred = [['IGN', 'IGN', 'B-MISC', 'I-MISC', 'I-MISC', 'I-MISC', 'IGN'], ['B-PER', 'I-PER', 'IGN']]
+        >>> y_true = [['O', 'O', 'O', 'B-MISC', 'I-MISC', 'I-MISC', 'O'], ['B-PER', 'I-PER', 'O']]
+        >>> y_pred = [['O', 'O', 'B-MISC', 'I-MISC', 'I-MISC', 'I-MISC', 'O'], ['B-PER', 'I-PER', 'O']]
         >>> recall_score(y_true, y_pred)
         0.50
     """
@@ -244,8 +244,8 @@ def performance_measure(y_true, y_pred):
         performance_dict : dict
     Example:
         >>> from seqeval.metrics import performance_measure
-        >>> y_true = [['IGN', 'IGN', 'IGN', 'B-MISC', 'I-MISC', 'IGN', 'B-ORG'], ['B-PER', 'I-PER', 'IGN']]
-        >>> y_pred = [['IGN', 'IGN', 'B-MISC', 'I-MISC', 'I-MISC', 'IGN', 'IGN'], ['B-PER', 'I-PER', 'IGN']]
+        >>> y_true = [['O', 'O', 'O', 'B-MISC', 'I-MISC', 'O', 'B-ORG'], ['B-PER', 'I-PER', 'O']]
+        >>> y_pred = [['O', 'O', 'B-MISC', 'I-MISC', 'I-MISC', 'O', 'O'], ['B-PER', 'I-PER', 'O']]
         >>> performance_measure(y_true, y_pred)
         (3, 3, 1, 4)
     """
@@ -254,11 +254,11 @@ def performance_measure(y_true, y_pred):
         y_true = [item for sublist in y_true for item in sublist]
         y_pred = [item for sublist in y_pred for item in sublist]
     performace_dict['TP'] = sum(y_t == y_p for y_t, y_p in zip(y_true, y_pred)
-                                if ((y_t != 'IGN') or (y_p != 'IGN')))
+                                if ((y_t != 'O') or (y_p != 'O')))
     performace_dict['FP'] = sum(y_t != y_p for y_t, y_p in zip(y_true, y_pred))
-    performace_dict['FN'] = sum(((y_t != 'IGN') and (y_p == 'IGN'))
+    performace_dict['FN'] = sum(((y_t != 'O') and (y_p == 'O'))
                                 for y_t, y_p in zip(y_true, y_pred))
-    performace_dict['TN'] = sum((y_t == y_p == 'IGN')
+    performace_dict['TN'] = sum((y_t == y_p == 'O')
                                 for y_t, y_p in zip(y_true, y_pred))
 
     return performace_dict
@@ -274,8 +274,8 @@ def classification_report(y_true, y_pred, digits=2, suffix=False):
         report : string. Text summary of the precision, recall, F1 score for each class.
     Examples:
         >>> from seqeval.metrics import classification_report
-        >>> y_true = [['IGN', 'IGN', 'IGN', 'B-MISC', 'I-MISC', 'I-MISC', 'IGN'], ['B-PER', 'I-PER', 'IGN']]
-        >>> y_pred = [['IGN', 'IGN', 'B-MISC', 'I-MISC', 'I-MISC', 'I-MISC', 'IGN'], ['B-PER', 'I-PER', 'IGN']]
+        >>> y_true = [['O', 'O', 'O', 'B-MISC', 'I-MISC', 'I-MISC', 'O'], ['B-PER', 'I-PER', 'O']]
+        >>> y_pred = [['O', 'O', 'B-MISC', 'I-MISC', 'I-MISC', 'I-MISC', 'O'], ['B-PER', 'I-PER', 'O']]
         >>> print(classification_report(y_true, y_pred))
                      precision    recall  f1-score   support
         <BLANKLINE>

@@ -1,5 +1,7 @@
 import numpy as np
 import sys
+import sklearn
+import sklearn.metrics as sk_metrics
 from tensorflow.keras.callbacks import Callback
 from .metrics import f1_score, classification_report
 
@@ -46,24 +48,33 @@ class F1Metrics(Callback):
         """
         y_pred = self.model.predict_on_batch(X)
         assert(len(y_pred) == 3)
+       
+        domain_true = y['domain_output'].numpy()
+        intent_true = y['intent_output'].numpy()
+        domain_pred = y_pred[0].argmax(-1)
+        intent_pred = y_pred[1].argmax(-1)
         y_pred = y_pred[2]
-        y = y['ner_output']
-        print(y_pred.shape, y.shape)
+        y = y['ner_output'].numpy()
         # reduce dimension.
         if len(np.array(y).shape) == 3:
             y_true = np.argmax(y, -1)
         else:
             y_true = y
-        print(y_pred.shape, y_true.shape)
         y_pred = np.argmax(y_pred, -1)
-        non_pad_indexes = [np.nonzero(np.array(y_true_row) != self.pad_value)[0] \
-            for y_true_row in y_true]
+
+        non_pad_indexes = [list(np.nonzero(np.array(y_true_row) != self.pad_value)[0]) \
+            for y_true_row in list(y_true)]
+            
         y_true = self.convert_idx_to_name(y_true, non_pad_indexes)
         y_pred = self.convert_idx_to_name(y_pred, non_pad_indexes)
 
-        return y_true, y_pred
 
-    def score(self, y_true, y_pred):
+
+        return y_true, y_pred, domain_true, \
+            domain_pred, intent_true, intent_pred
+
+    def score(self, y_true, y_pred, y_true_domain, \
+        y_pred_domain, y_true_intent, y_pred_intent):
         """Calculate f1 score.
         Args:
             y_true (list): true sequences.
@@ -73,9 +84,15 @@ class F1Metrics(Callback):
         """
         score = f1_score(y_true, y_pred)
         print(' - f1: {:04.2f}'.format(score * 100))
+        domain_f1_score = sk_metrics.f1_score(\
+            y_true_domain, y_pred_domain, average='micro')
+        intent_f1_score = sk_metrics.f1_score(\
+            y_true_intent, y_pred_intent, average='micro')
+        print(' - domain f1: {:04.2f}'.format(domain_f1_score * 100))
+        print(' - intent f1: {:04.2f}'.format(intent_f1_score * 100))
         if self.digits:
             print(classification_report(y_true, y_pred, digits=self.digits))
-        return score
+        return score, domain_f1_score, intent_f1_score
 
     def on_epoch_end(self, epoch, logs={}):
         if self.is_fit:
@@ -93,9 +110,23 @@ class F1Metrics(Callback):
     def on_epoch_end_fit_generator(self, epoch, logs={}):
         y_true = []
         y_pred = []
+        y_true_domain = []
+        y_pred_domain = []
+        y_true_intent = []
+        y_pred_intent = []
         for X, y in self.validation_data:
-            y_true_batch, y_pred_batch = self.predict(X, y)
+            y_true_batch, y_pred_batch, domain_true_batch, \
+                domain_pred_batch, intent_true_batch, \
+                    intent_pred_batch = self.predict(X, y)
             y_true.extend(y_true_batch)
             y_pred.extend(y_pred_batch)
-        score = self.score(y_true, y_pred)
+            y_true_domain.extend(domain_true_batch)
+            y_pred_domain.extend(domain_pred_batch)
+            y_true_intent.extend(intent_true_batch)
+            y_pred_intent.extend(intent_pred_batch)
+        score, domain_score, intent_score = self.score(y_true, y_pred, y_true_domain, \
+        y_pred_domain, y_true_intent, y_pred_intent)
         logs['f1'] = score
+        logs['domain_f1'] = domain_score
+        logs['intent_f1'] = intent_score
+        

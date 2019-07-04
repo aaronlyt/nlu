@@ -80,10 +80,6 @@ def read_bert_data(dataset_path, token_dict, ner_vocab, \
             print('---', intent_labels[idx])
             dataset_intent_labels.append(intent_vocab['NaN'])
         
-        #print(indices)
-        #print(segments)
-        #print(domain_vocab[domain_labels[idx]])
-        #print(dataset_intent_labels[idx])
         assert(len(dataset_ner_labels[idx]) == len(indices))
         
     print('---split sentence count---', len(dataset_indices))    
