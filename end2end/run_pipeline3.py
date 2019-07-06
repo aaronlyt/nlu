@@ -35,7 +35,7 @@ handlers = [
 ]
 logging.getLogger('run_bert').handlers = handlers
 
-logdir = '../results/bert_logs_2'
+logdir = '../results/bert_logs_3'
 file_writer = tf.summary.create_file_writer(logdir + "/metrics_crf")
 file_writer.set_as_default()
 
@@ -71,7 +71,7 @@ def build_model_pipeline(params, train_dataset, \
         keras.callbacks.EarlyStopping(patience=5, monitor='loss'),
         # Write TensorBoard logs to `./logs` directory
         keras.callbacks.TensorBoard(log_dir=logdir),
-        keras.callbacks.ModelCheckpoint('../results/bert.cpk', \
+        keras.callbacks.ModelCheckpoint('../results/bert_3.cpk', \
             verbose=1, save_best_only=True, save_weights_only=True, \
                 monitor='loss'),
         #keras.callbacks.LearningRateScheduler(\
@@ -96,10 +96,12 @@ if __name__ == '__main__':
         'use_emb_drop': False,
         'use_lstm': False, 
         'emb_drop_rate': 0.1,
+        'regularizer': 'l1',
+        'reg_w': [1e-5, 1e-5, 1e-5],
         'num_layer': 0,
         'num_lstm_cell': [150],
         'rec_drops': [0.1],
-        'lr': 1e-5
+        'lr': 5e-5
     }
     params['entities_num'] = len(ner_vocab)
     params['domain_num'] = len(domain_vocab)

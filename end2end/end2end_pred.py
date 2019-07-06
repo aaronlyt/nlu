@@ -34,10 +34,12 @@ params = {
         'use_emb_drop': False,
         'use_lstm': False, 
         'emb_drop_rate': 0.1,
+        'regularizer': 'l1',
+        'reg_w': [1e-5, 1e-5, 1e-5],
         'num_layer': 0,
         'num_lstm_cell': [150],
         'rec_drops': [0.1],
-        'lr': 1e-5
+        'lr': 5e-5
     }
  
 def load_info():
@@ -65,7 +67,7 @@ def load_info():
     model, loss, metrics = jointModel(params)
     model.compile(optimizer, loss=loss, metrics=metrics)
 
-    model.load_weights('../results/bert.cpk')
+    model.load_weights('../results/bert_3.cpk')
     
     return model, vocab, ner_id2label, domain_id2label, intent_id2label
 
@@ -98,14 +100,14 @@ def bs_pred(text_dict, model, vocab, ner_id2label, \
     ner_predict = ner_predict[1: (len(txt_seq) + 1)]
     entities = get_entities(ner_predict)
     slot = {}
-    print(entities)
     for entity_tuple in entities:
         entity, start_idx, end_idx = entity_tuple
         slot[entity] = text_dict['text'][start_idx: (end_idx + 1)]
     text_dict['slots'] = slot
     
-    print(text_dict)
+    #print(text_dict)
 
+    return text_dict
 
 if __name__ == '__main__':
     import json
@@ -124,7 +126,6 @@ if __name__ == '__main__':
         text_dic = {"text": dev_data['text']}
         rguess_dct.append(bs_pred(text_dic, model, vocab, \
             ner_id2label, domain_id2label, intent_id2label))
-        sys.exit(0)
 
     with codecs.open(output_path, 'w', encoding='utf-8') as fp:
         json.dump(rguess_dct, fp, ensure_ascii=False)

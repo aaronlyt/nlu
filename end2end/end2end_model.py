@@ -43,26 +43,33 @@ def jointModel(params):
         x = layers.Embedding(\
                 params['vocab_len'], params['emb_dim'], \
                     embeddings_initializer=init_emb, zero_mask=True)(inputs)
+    if params['use_emb_drop']:
+        x = layers.Dropout(params['emb_drop_rate'])(x)
+
     if params['use_lstm']:
-        if params['use_emb_drop']:
-            x = layers.Dropout(\
-                params['emb_drop_rate'])(x)
-        
         for layer_idx in range(params['lstm_num']):
             x = layers.LSTM(\
                 units=params['lstm_cells'][layer_idx], \
                     recurrent_dropout=params['rec_drops'][layer_idx], \
                         return_sequences=True)(x)
-    
+    regularizer = None
+    if params['regularizer'] == 'l1':
+        regularizer = tf.keras.regularizers.l1
+    elif params['regularizer'] == 'l2':
+        regularizer = tf.keras.regularizers.l2
+
     ner_pred = layers.TimeDistributed(\
         layers.Dense(params['entities_num'], \
+        kernel_regularizer=regularizer(params['reg_w'][0]), \
             activation='softmax'), name='ner_output')(x)
     # batch_size * seq_len * embedding_sz
     x_shape = x.get_shape()
     cls_x = layers.Lambda(lambda t: t[:, 0, :])(x)
     intent_pred = layers.Dense(params['intent_num'], \
+        kernel_regularizer=regularizer(params['reg_w'][1]), \
         activation='softmax', name='intent_output')(cls_x)
     domain_pred = layers.Dense(params['domain_num'], \
+        kernel_regularizer=regularizer(params['reg_w'][2]), \
         activation='softmax', name='domain_output')(cls_x)
 
     model = tf.keras.Model(inputs=inputs, \
