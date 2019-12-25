@@ -1,2 +1,2 @@
-# nlu
-natural language understanding
+SMP2019中文人机对话技术评测（ECDT） 任务1：自然语言理解评测
+
